@@ -1,0 +1,9 @@
+[submodule "REST_ChIP_mouse_astrocytes_volta"]
+	path = REST_ChIP_mouse_astrocytes_volta
+	url = /space/cassj/REST_ChIP_mouse_astrocytes_volta
+[submodule "DNREST_expression_mouse_astrocytes_volta"]
+	path = DNREST_expression_mouse_astrocytes_volta
+	url = /space/cassj/DNREST_expression_mouse_astrocyte_volta
+[submodule "Johnson_ChIPPET"]
+	path = Johnson_ChIPPET
+	url = /space/cassj/Published_REST_Data/Johnson_ChIPPET
