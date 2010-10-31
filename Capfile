@@ -21,7 +21,7 @@ set :nhosts, 1
 set :snap_id, `cat SNAPID`.chomp #empty until you've created a snapshot
 set :vol_id, `cat VOLUMEID`.chomp #empty until you've created a new volume
 set :ebs_size, 5  
-set :ebs_zone, 'eu-west-1a'  #wherever your ami is. 
+set :availabilty_zone, 'eu-west-1a'  #wherever your ami is. 
 set :dev, '/dev/sdf'
 set :mount_point, '/mnt/data'
 
