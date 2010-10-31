@@ -1,0 +1,3 @@
+This project pulls in a number of other projects using git's submodule support. 
+For details on how to fully checkout a project with submodules, see https://git.wiki.kernel.org/index.php/GitSubmoduleTutorial
+
