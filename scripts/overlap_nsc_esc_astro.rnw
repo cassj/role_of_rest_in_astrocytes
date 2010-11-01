@@ -1,0 +1,222 @@
+\documentclass[a4paper]{article}
+\begin{document}
+\title{This is an example}
+\author{I Made This}
+\maketitle
+<<>>= code chunk. This is an unprocessed comment. By default, code and output will appear in the processed LaTeX file.
+vals<-rnorm(1000)
+length(vals)
+vals[1:10]
+@ and back to doc chunk. This is an unprocessed comment
+
+
+
+
+ 
+options(stringsAsFactors = FALSE);
+
+library(IRanges)
+
+args <- commandArgs(trailingOnly=TRUE)
+esc.file = args[1]
+nsc.file = args[2]
+astro.file = args[3]
+dat <- read.csv(filename)
+
+
+
+
+library(IRanges)
+
+esc.pet <- get(load("../Published_REST_Data/Johnson_ChIPPET/ESC/PET_data/RangedData.R"))
+ns5.pet <- get(load("../Published_REST_Data/Johnson_ChIPPET/NS5/PET_data/RangedData.R"))
+astro.chipseq <- get(load("../RESTChIP/Macs/results/NA_peaks.AnnoRangedData.RData"))
+esc.n <- dim(esc.pet)[1]
+ns5.n <- dim(ns5.pet)[1]
+astro.n <- dim(astro.chipseq)[1]
+
+#ESC and NSC are lists from Rory's publication, I haven't done
+#the analysis from scratch.
+#Astro are Macs data, p value  1e-5, bw250, mfold 10,30
+#> esc.n
+#[1] 2457
+#> ns5.n
+#[1] 854
+#> astro.n
+#[1] 659
+
+
+
+
+do.chr <- function(s){
+  cat(s,"\n")
+
+  do.ns5 <- s %in% names(ns5.pet)
+  do.esc <- s %in% names(esc.pet)
+  do.astro <- s %in% names(astro.chipseq)
+  
+  #get overlaps for this chr (within 500bp)
+  if(do.esc && do.ns5) esc.ns5.ol <- findOverlaps(esc.pet[s], ns5.pet[s], maxgap=100)
+  if(do.esc && do.astro) esc.astro.ol <- findOverlaps(esc.pet[s], astro.chipseq[s], maxgap=100)
+  if(do.esc && do.astro) ns5.astro.ol <- findOverlaps(ns5.pet[s], astro.chipseq[s], maxgap=100)
+
+  #turn ols into matrices
+  esc.ns5.ol.mat <- esc.astro.ol.mat <-  ns5.astro.ol.mat <- esc.ns5.astro.ol.mat <- NA
+  if(do.esc && do.ns5){
+    esc.ns5.ol.mat <- as.matrix( esc.ns5.ol[[1]] )
+    colnames( esc.ns5.ol.mat ) <-  c("esc","ns5")
+  }
+
+  if(do.esc && do.astro){
+    esc.astro.ol.mat <- as.matrix( esc.astro.ol[[1]] )
+    colnames( esc.astro.ol.mat ) <- c("esc","astro") 
+  }
+
+  if(do.ns5 && do.astro){
+    ns5.astro.ol.mat <-  as.matrix( ns5.astro.ol[[1]] ) 
+    colnames( ns5.astro.ol.mat ) <- c("ns5","astro")
+  }
+
+  if(do.esc && do.ns5 && do.astro)  esc.ns5.astro.ol.mat <- merge(esc.ns5.ol.mat,  ns5.astro.ol.mat)
+
+
+  
+  esc.n <- ns5.n <- astro.n <- NA
+  if(do.esc) esc.n <- dim(esc.pet[s])[1]
+  if(do.ns5) ns5.n <- dim(ns5.pet[s])[1]
+  if(do.astro) astro.n <- dim(astro.chipseq[s])[1]
+
+  esc.astro.n <- esc.ns5.n <- ns5.astro.n <- esc.ns5.astro.n <- NA
+  if(do.esc && do.astro) esc.astro.n <- dim( esc.astro.ol.mat )[1]
+  if(do.esc && do.ns5) esc.ns5.n <- dim(esc.ns5.ol.mat)[1]
+  if(do.ns5 && do.astro) ns5.astro.n <- dim(ns5.astro.ol.mat)[1]
+  if(do.esc && do.ns5 && do.astro) esc.ns5.astro.n <- dim( esc.ns5.astro.ol.mat)[1]
+
+  #what about unique stuff?
+  astro.ol <-  astro.unq <- n.astro.unq <- ns5.ol <-  ns5.unq <- n.ns5.unq <- esc.ol <-  esc.unq <- n.esc.unq <- NA
+
+  if(do.astro){
+    ol <- numeric()
+    if(do.esc) ol <- c(ol,esc.astro.ol.mat[,"astro"])
+    if(do.ns5) ol <- c(ol, ns5.astro.ol.mat[,"astro"])
+    astro.ol <- unique(ol)
+    if(length(astro.ol)>0){
+      astro.unq <- astro.chipseq[s][-1*astro.ol,]
+    }else{astro.unq <- astro.chipseq}
+  }
+  
+  if(do.esc){
+    ol <- numeric()
+    if(do.ns5) ol <- c(ol,esc.ns5.ol.mat[,"esc"])
+    if(do.astro) ol <- c(ol, esc.astro.ol.mat[,"esc"])
+    esc.ol <- unique(ol)
+    if(length(esc.ol)>0){
+      esc.unq <- esc.pet[s][-1*esc.ol,]
+    }else{esc.unq <- esc.pet}
+  }
+
+  if(do.ns5){
+    ol <- numeric()
+    if(do.esc) ol <- c(ol,esc.ns5.ol.mat[,"ns5"])
+    if(do.astro) ol <- c(ol, ns5.astro.ol.mat[,"ns5"])
+    ns5.ol <- unique(ol)
+    if(length(ns5.ol)>0){
+      ns5.unq <- ns5.pet[s][-1*ns5.ol,]
+    }else{ns5.unq <- ns5.pet}
+  }
+
+  return(list(
+              esc.ns5.ol.mat = esc.ns5.ol.mat,
+              esc.astro.ol.mat = esc.astro.ol.mat,
+              ns5.astro.ol.mat = ns5.astro.ol.mat ,
+              esc.ns5.astro.ol.mat =  esc.ns5.astro.ol.mat,
+              esc.n = esc.n,
+              ns5.n= ns5.n,
+              astro.n = astro.n,
+              esc.astro.n = esc.astro.n,
+              esc.ns5.n = esc.ns5.n,
+              ns5.astro.n = ns5.astro.n,
+              esc.ns5.astro.n = esc.ns5.astro.n ,
+              esc.unq = esc.unq ,
+              ns5.unq = ns5.unq,
+              astro.unq = astro.unq,
+              n.astro.unq = n.astro.unq,
+              n.esc.unq = n.esc.unq,
+              n.ns5.unq = n.ns5.unq
+              ))
+  
+  
+}
+
+
+spaces = names(esc.pet)
+overlap.info <- lapply(spaces, do.chr)
+
+
+
+
+
+
+#venn diagram
+astro.n <- esc.n <- ns5.n <- esc.astro.n <- ns5.astro.n <- esc.ns5.astro.n <- 0
+astro.n <- sapply(overlap.info, function(x){x$astro.n} )
+esc.n <- sapply(overlap.info, function(x){x$esc.n} )
+ns5.n <- sapply(overlap.info, function(x){x$ns5.n} )
+
+esc.astro.n <- sapply(overlap.info, function(x){x$esc.astro.n} )
+esc.ns5.n <- sapply(overlap.info, function(x){x$esc.ns5.n} )
+ns5.astro.n <- sapply(overlap.info, function(x){x$ns5.astro.n} )
+esc.ns5.astro.n <- sapply(overlap.info, function(x){x$esc.ns5.astro.n} )
+
+n.astro.unq <-  n.esc.unq <-  n.ns5.unq <- 0
+n.astro.unq <- sapply(overlap.info, function(x){x$n.astro.unq} )
+n.esc.unq <- sapply(overlap.info, function(x){x$n.esc.unq} )
+n.ns5.unq <- sapply(overlap.info, function(x){x$n.ns5.unq} )
+
+sum(astro.n, na.rm=T)
+sum(esc.n, na.rm=T)
+sum(ns5.n, na.rm=T)
+sum(n.astro.unq, na.rm=T)
+sum(n.ns5.unq, na.rm=T)
+sum(ns5.astro.n, na.rm=T)
+sum(n.esc.unq, na.rm=T)
+sum(esc.astro.n, na.rm=T)
+sum(esc.ns5.n, na.rm=T)
+sum(esc.ns5.astro.n, na.rm=T)
+
+
+# sum(astro.n, na.rm=T)
+#1] 659
+# sum(esc.n, na.rm=T)
+#1] 2457
+# sum(ns5.n, na.rm=T)
+#1] 854
+# sum(n.astro.unq, na.rm=T)
+#1] 0
+# sum(n.ns5.unq, na.rm=T)
+#1] 0
+# sum(ns5.astro.n, na.rm=T)
+#1] 159
+# sum(n.esc.unq, na.rm=T)
+#1] 0
+# sum(esc.astro.n, na.rm=T)
+#1] 163
+# sum(esc.ns5.n, na.rm=T)
+#1] 671
+# sum(esc.ns5.astro.n, na.rm=T)
+#1] 148
+
+
+
+
+astro.unq <- as.data.frame(overlap.info[[1]]$astro.unq)
+for(i in 2:length(overlap.info)){
+  cat(i,"\n")
+  if(class(overlap.info[[i]]$astro.unq ) == "RangedData" ){
+    these <-  as.data.frame(overlap.info[[i]]$astro.unq)
+    if(nrow(these)>0){
+      astro.unq <- rbind(astro.unq,  as.data.frame(overlap.info[[i]]$astro.unq))
+    }
+  }
+}
+

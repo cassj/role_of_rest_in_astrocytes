@@ -74,7 +74,7 @@ task :install_r, :roles  => group_name do
   sudo 'apt-get -y install build-essential libxml2 libxml2-dev libcurl3 libcurl4-openssl-dev'
   run "cd #{working_dir}/scripts &&  curl '#{git_url}/scripts/R_setup.R' > R_setup.R"
   run "chmod +x #{working_dir}/scripts/R_setup.R"
-  sudo "Rscript #{working_dir}/script/R_setup.R"
+  sudo "Rscript #{working_dir}/scripts/R_setup.R"
 end
 before "install_r", "EC2:start"
   
@@ -84,6 +84,7 @@ desc "overlap ESC NSC and Astro sites"
 task :esc_nsc_astro_overlap, :roles => group_name do
    run "mkdir -p #{working_dir}/scripts"
    run "cd #{working_dir}/scripts && curl #{git_url}/overlap_nsc_esc_astro.rnw overlap_nsc_esc_astro.rnw"  
+   run "chmod +x #{working_dir}/scripts/overlap_nsc_esc_astro.rnw"
 end
 before "esc_nsc_astro_overlap", "EC2:start"
 
