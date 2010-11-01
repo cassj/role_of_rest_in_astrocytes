@@ -1,3 +1,25 @@
 This project pulls in a number of other projects using git's submodule support. 
 For details on how to fully checkout a project with submodules, see https://git.wiki.kernel.org/index.php/GitSubmoduleTutorial
 
+The submodules will need a Capfile.local file to override their default group and mount points. For example, for Johnson_ChIPPET:
+
+ set :group_name, 'role_of_rest_in_astrocytes'
+ set :availability_zone, 'eu-west-1a'  #must be the same as that of superproject 
+ set :dev, '/dev/sdg'
+ set :mount_point, '/mnt/johnson'
+
+In the main project directory you should then be able to do:
+
+ cap EC2:start
+ cap EBS:create
+ cap EBS:format_xfs #(if you're not creating from an existing snapshot)
+ cap EBS:mount_xfs
+
+and in each of the submodules
+
+ cap EBS:create
+ cap EBS:mount_xfs
+
+
+
+

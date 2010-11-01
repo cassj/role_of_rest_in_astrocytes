@@ -21,11 +21,18 @@ set :nhosts, 1
 set :snap_id, `cat SNAPID`.chomp #empty until you've created a snapshot
 set :vol_id, `cat VOLUMEID`.chomp #empty until you've created a new volume
 set :ebs_size, 5  
-set :availabilty_zone, 'eu-west-1a'  #wherever your ami is. 
+set :availability_zone, 'eu-west-1a'  #wherever your ami is. 
 set :dev, '/dev/sdf'
 set :mount_point, '/mnt/data'
 
 set :git_url, 'http://github.com/cassj/role_of_rest_in_astrocytes/raw/master'
+
+#define the mount points of subprojects. Note that these are also defined in the 
+#subproject Capfiles, so you need to make sure they agree if you change them.
+set :sp_johnson, '/mnt/johnson'
+set :sp_rest_chip_astro, '/mnt/rest_chip_astro'
+set :sp_dnrest_astro_xpn, '/mnt/dnrest_astro_xpn'
+
 
 # Try and load a local config file to override any of the above values, should one exist.
 # So that if you change these values, they don't get overwritten if you update the repos.
@@ -40,6 +47,13 @@ end
 #cap EBS:format_xfs (unless you're using a snapshot)
 #cap EBS:mount_xfs
 #
+# For each subproject that you want to use, 
+# cd subproject_dir
+# cap EBS:create
+# cap EBS:attach
+# cap EBS:mount_xfs
+# cd ../
+#
 # run tasks as required
 # 
 #cap EBS:snapshot
@@ -49,10 +63,27 @@ end
 #cap EC2:stop
 
 
-#### Tasks ####
-desc "run QC checks on the raw data"
-task :qc_expression_data, :roles => group_name do
-  puts "TODO"
+
+### Instance Setup Tasks
+desc "install R on all running instances in group group_name"
+task :install_r, :roles  => group_name do
+  user = variables[:ssh_options][:user]
+  run "mkdir -p #{working_dir}/scripts"
+  sudo 'apt-get update'
+  sudo 'apt-get -y install r-base'
+  sudo 'apt-get -y install build-essential libxml2 libxml2-dev libcurl3 libcurl4-openssl-dev'
+  run "cd #{working_dir}/scripts &&  curl '#{git_url}/scripts/R_setup.R' > R_setup.R"
+  run "chmod +x #{working_dir}/scripts/R_setup.R"
+  sudo "Rscript #{working_dir}/script/R_setup.R"
 end
-before "qc_expression_data", "EC2:start"
+before "install_r", "EC2:start"
+  
+
+#### Tasks ####
+desc "overlap ESC NSC and Astro sites"
+task :esc_nsc_astro_overlap, :roles => group_name do
+   run "mkdir -p #{working_dir}/scripts"
+   run "cd #{working_dir}/scripts && curl #{git_url}/overlap_nsc_esc_astro.rnw overlap_nsc_esc_astro.rnw"  
+end
+before "esc_nsc_astro_overlap", "EC2:start"
 
