@@ -101,12 +101,11 @@ before "install_r", "EC2:start"
 #add files in the form 'remote_src_path' => 'local_target'
 dl_files = Hash.new()
 
-
 desc "overlap ESC NSC and Astro sites"
 task :overlap_nsc_esc_astro, :roles => group_name do
-   run "mkdir -p #{working_dir}/scripts"
-   run "cd #{working_dir}/scripts && curl #{git_url}/scripts/overlap_nsc_esc_astro.R > overlap_nsc_esc_astro.R"  
-   run "chmod +x #{working_dir}/scripts/overlap_nsc_esc_astro.R"
+  run "mkdir -p #{working_dir}/scripts"
+  upload('scripts/overlap_nsc_esc_astro.R', "#{working_dir}/scripts/overlap_nsc_esc_astro.R")
+  run "chmod +x #{working_dir}/scripts/overlap_nsc_esc_astro.R"
   run "cd #{mount_point} && Rscript #{working_dir}/scripts/overlap_nsc_esc_astro.R #{sp_johnson}/NS5/PET/RangedData.R #{sp_johnson}/ESC/PET/RangedData.R #{sp_rest_chip_astro}/Macs/NA_peaks.RangedData.RData #{mount_point}/overlap_nsc_esc_astro"
 end
 before "overlap_nsc_esc_astro", "EC2:start"
@@ -114,8 +113,12 @@ before "overlap_nsc_esc_astro", "EC2:start"
 
 desc "fetch_results"
 task :fetch_results, :roles => group_name do
-  dl_files.each_pair {|remote_src, local_target| 
-    download(remote_src, local_target)
+  files = capture("ls #{mount_point}/nsc_esc_astro_overlap_*").split("\n")
+  files.each {|f|
+    fname = f.sub(/^.*\//,'')
+    download(f,"results/#{fname}" )
   }
-  
 end 
+before "fetch_results", "EC2:start"
+
+
