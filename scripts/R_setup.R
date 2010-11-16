@@ -1,10 +1,9 @@
 #!/usr/bin/Rscript
 	 	
 source("http://www.bioconductor.org/biocLite.R")
-	 	
-biocLite("limma")
-	 	
-biocLite("affy")
+
+#default bioconductor packages 
+biocLite()
 	 	
 biocLite("beadarray")
 	 	
@@ -16,3 +15,4 @@ biocLite("ChIPpeakAnno")
 
 biocLite("BSgenome.Mmusculus.UCSC.mm9")
 
+biocLite("GenomicRanges")`

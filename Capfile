@@ -11,7 +11,10 @@ set :ssh_options, {
   :keys => [ENV['EC2_KEYFILE']],
   :user => "ubuntu"
 }
-set :ami, 'ami-52794c26' #32-bit ubuntu lucid server (eu-west-1)
+
+
+#should be using the buckley_lab_ami but it isn't working yet.
+set :ami, 'ami-7e5c690a' #32-bit Ubuntu Maverick, eu-west-1
 set :instance_type, 'm1.small'
 set :working_dir, '/mnt/work'
 
@@ -64,27 +67,55 @@ end
 
 
 
-### Instance Setup Tasks
-desc "install R on all running instances in group group_name"
+### Instance Setup Tasks.
+
+#these will be done on buckley ami when I've got it working  
+
+desc "install latest R-devel"
 task :install_r, :roles  => group_name do
   user = variables[:ssh_options][:user]
+#  sudo "apt-get -y build-dep r-base"  #everything for R
+#  sudo "apt-get -y install libxml2 libxml2-dev libcurl3 libcurl4-openssl-dev" #and for some of the Bioconductor stuff
+	
   run "mkdir -p #{working_dir}/scripts"
-  sudo 'apt-get update'
-  sudo 'apt-get -y install r-base'
-  sudo 'apt-get -y install build-essential libxml2 libxml2-dev libcurl3 libcurl4-openssl-dev'
-  run "cd #{working_dir}/scripts &&  curl '#{git_url}/scripts/R_setup.R' > R_setup.R"
-  run "chmod +x #{working_dir}/scripts/R_setup.R"
+  upload("scripts/R_setup.R","#{working_dir}/scripts/R_setup.R")
+  run "cd #{working_dir}/scripts && chmod +x R_setup.R"
+
+  r_src_url = 'ftp://ftp.stat.math.ethz.ch/Software/R/R-devel.tar.bz2'
+  run "cd #{working_dir} && curl #{r_src_url} > R-devel.tar.bz2"
+  run "cd #{working_dir} && tar -xvjf  R-devel.tar.bz2"
+  run "cd #{working_dir}/R-devel && umask 022 && ./configure"  
+  run "cd #{working_dir}/R-devel && umask 022 && make"
+  run "cd #{working_dir}/R-devel && umask 022 && sudo make install"
+
   sudo "Rscript #{working_dir}/scripts/R_setup.R"
+
 end
 before "install_r", "EC2:start"
   
 
-#### Tasks ####
-desc "overlap ESC NSC and Astro sites"
-task :esc_nsc_astro_overlap, :roles => group_name do
-   run "mkdir -p #{working_dir}/scripts"
-   run "cd #{working_dir}/scripts && curl #{git_url}/overlap_nsc_esc_astro.rnw overlap_nsc_esc_astro.rnw"  
-   run "chmod +x #{working_dir}/scripts/overlap_nsc_esc_astro.rnw"
-end
-before "esc_nsc_astro_overlap", "EC2:start"
 
+
+#### Tasks ####
+
+#add files in the form 'remote_src_path' => 'local_target'
+dl_files = Hash.new()
+
+
+desc "overlap ESC NSC and Astro sites"
+task :overlap_nsc_esc_astro, :roles => group_name do
+   run "mkdir -p #{working_dir}/scripts"
+   run "cd #{working_dir}/scripts && curl #{git_url}/scripts/overlap_nsc_esc_astro.R > overlap_nsc_esc_astro.R"  
+   run "chmod +x #{working_dir}/scripts/overlap_nsc_esc_astro.R"
+  run "cd #{mount_point} && Rscript #{working_dir}/scripts/overlap_nsc_esc_astro.R #{sp_johnson}/NS5/PET/RangedData.R #{sp_johnson}/ESC/PET/RangedData.R #{sp_rest_chip_astro}/Macs/NA_peaks.RangedData.RData #{mount_point}/overlap_nsc_esc_astro"
+end
+before "overlap_nsc_esc_astro", "EC2:start"
+
+
+desc "fetch_results"
+task :fetch_results, :roles => group_name do
+  dl_files.each_pair {|remote_src, local_target| 
+    download(remote_src, local_target)
+  }
+  
+end 
