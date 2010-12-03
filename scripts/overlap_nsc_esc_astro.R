@@ -5,10 +5,10 @@ args <- commandArgs(trailingOnly=TRUE)
 
 library(IRanges)
 
-#ns5.file<-"/mnt/johnson/NS5/PET/RangedData.R"
-#esc.file<-"/mnt/johnson/ESC/PET/RangedData.R"
-#astro.file<-"/mnt/rest_chip_astro/Macs/NA_peaks.RangedData.RData"
-#output.prefix<-"/mnt/data/nsc_esc_astro_overlap"
+ns5.file<-"/mnt/johnson/NS5/PET/RangedData.R"
+esc.file<-"/mnt/johnson/ESC/PET/RangedData.R"
+astro.file<-"/mnt/rest_chip_astro/Macs/NA_peaks.RangedData.RData"
+output.prefix<-"/mnt/data/nsc_esc_astro_overlap"
 
 
 ns5.file <- args[1]
@@ -33,10 +33,10 @@ ensmart <- useMart("ensembl", dataset="mmusculus_gene_ensembl")
 #tss <- getAnnotation(ensmart, "TSS")
 #exons <- getAnnotation(ensmart, "Exon")
 
-save(exons, file="/mnt/work/exons.RData")
-save(tss, file="/mnt/work/tss.RData")
-load("/mnt/work/exons.RData")
-load("/mnt/work/tss.RData")
+#save(exons, file="/mnt/work/exons.RData")
+#save(tss, file="/mnt/work/tss.RData")
+#load("/mnt/work/exons.RData")
+#load("/mnt/work/tss.RData")
 
 # chromosome names are not the same. Note that this will break the NT_ stuff
 # but we're not using them here so it doesn't matter
@@ -82,91 +82,14 @@ overlapping.exon.ns <- findOverlaps(ns5.pet, exons, type="any", select="first")
 overlapping.exon.es <- findOverlaps(esc.pet, exons, type="any", select="first")
 overlapping.exon.astro <- findOverlaps(astro.chipseq, exons, type="any", select="first")
 
-
-
-
-esc.n <- dim(esc.pet)[1]
-ns5.n <- dim(ns5.pet)[1]
-astro.n <- dim(astro.chipseq)[1]
-
-ns5.esc.ol <- findOverlaps(ns5.pet, esc.pet, maxgap=500, minoverlap=1)
-astro.esc.ol <- findOverlaps(astro.chipseq, esc.pet, maxgap=500, minoverlap=1)
-astro.ns5.ol <- findOverlaps(astro.chipseq, ns5.pet, maxgap=500, minoverlap=1)
-
-#get overlap counts for venn
-ns5.esc.n <- nrow(as.matrix(ns5.esc.ol))
-astro.esc.n <- nrow(as.matrix(astro.esc.ol))
-astro.ns5.n <- nrow(as.matrix(astro.ns5.ol))
-
-
-
-#fetch gene symbol and description for all the ensembl ids. 
-ens.annot <- getBM(mart=ensmart, attributes=c("ensembl_gene_id", "mgi_curated_gene_symbol","description" ))
-rownames(ens.annot) <- ens.annot[,"ensembl_gene_id"]
-ens.annot<-ens.annot[,-1]
-
-#no overlap
-esc <- do.call("rbind",lapply(names(ns5.esc.ol), function(n){
-
-  n.e <- ns5.esc.ol[[n]]
-  a.e <- astro.esc.ol[[n]]
-  if(is.null(n.e) || is.null(a.e)) return ()
-
-  n.e <- as.matrix(n.e)
-  a.e <- as.matrix(a.e)
-
-  this.esc <- as.data.frame(esc.pet[n])[,c("space",usecols)]
-  es.nearest<-as.data.frame(nearest.tss.es[n])
-  this.es <- cbind(this.esc, es.nearest, ens.annot[es.nearest[,"feature"], ])
-    
-  inds <- -1*(union(n.e[,"subject"], a.e[,"subject"]))
-  es <- this.es[inds, ]
-  
-}))
-              
-ns5 <- do.call("rbind",lapply(names(ns5.esc.ol), function(n){
-
-  n.e <- ns5.esc.ol[[n]]
-  a.n <- astro.ns5.ol[[n]]
-  if(is.null(n.e) || is.null(a.n)) return ()
-
-  n.e <- as.matrix(n.e)
-  a.n <- as.matrix(a.n)
-
-  this.ns5 <- as.data.frame(ns5.pet[n])[,c("space",usecols)]
-  ns.nearest<-as.data.frame(nearest.tss.ns[n])
-  this.ns <- cbind(this.ns5, ns.nearest, ens.annot[ns.nearest[,"feature"],])
-  
-    
-  inds <- -1*(union(n.e[,"query"], a.n[,"subject"]))
-  ns <- this.ns[inds, ]
-  
-}))
-         
-
-astro <- do.call("rbind",lapply(names(ns5.esc.ol), function(n){
-
-  a.e <- astro.esc.ol[[n]]
-  a.n <- astro.ns5.ol[[n]]
-  if(is.null(a.e) || is.null(a.n)) return ()
-
-  a.e <- as.matrix(a.e)
-  a.n <- as.matrix(a.n)
-
-  this.astro <- as.data.frame(astro.chipseq[n])[,c("space",usecols)]
-  astro.nearest<-as.data.frame(nearest.tss.astro[n])
-  this.astro <- cbind(this.astro, astro.nearest, ens.annot[astro.nearest[,"feature"],])
-    
-  inds <- -1*(union(a.e[,"query"], a.n[,"query"]))
-  astro <- this.astro[inds, ]
-  
-}))
-         
-
-
+maxgap=100
+ns5.esc.ol <- findOverlaps(ns5.pet, esc.pet, maxgap=maxgap, minoverlap=1)
+astro.esc.ol <- findOverlaps(astro.chipseq, esc.pet, maxgap=maxgap, minoverlap=1)
+astro.ns5.ol <- findOverlaps(astro.chipseq, ns5.pet, maxgap=maxgap, minoverlap=1)
 
 #all three overlap (findOverlaps can't do this)
-astro.both.ol <- lapply(names(ns5.esc.ol), function(x){
+nms <- intersect(names(astro.chipseq), intersect(names(esc.pet), names(ns5.pet)))
+astro.esc.ns5.ol <- lapply(nms, function(x){
   n.e <- ns5.esc.ol[[x]]
   a.n <- astro.ns5.ol[[x]]
   if(is.null(n.e) || is.null(a.n)) return ()
@@ -180,40 +103,121 @@ astro.both.ol <- lapply(names(ns5.esc.ol), function(x){
   return(ol)
   
 } )
-names(astro.both.ol) <- names(ns5.esc.ol)
-astro.both.n <- sum(unlist(lapply( astro.both.ol,  function(x){nrow(x)} )))
+names(astro.esc.ns5.ol) <- nms
+astro.esc.ns5.n <- sum(unlist(lapply( astro.esc.ns5.ol,  function(x){nrow(x)} )))
 
 
-#create a txt report file with these counts
-filename <- paste(output.prefix,"report.txt", sep="_")
-cat("ESC total:", dim(esc.pet), "\n" , file=filename)
-cat("NS5:total:", dim(ns5.pet), "\n", file=filename, append=T)
-cat("Astro:total:", dim(astro.chipseq), "\n", file=filename, append=T)
-cat("NS/ES overlap:", ns5.esc.n, "\n", file=filename, append=T)
-cat("Astro/ES overlap:",astro.esc.n,  "\n", file=filename, append=T)
-cat("Astro/NS overlap:", astro.ns5.n, "\n", file=filename, append=T)
-cat("NS/ES/Astro overlap:", astro.both.n, "\n", file=filename, append=T)
+#fetch gene symbol and description for all the ensembl ids. 
+ens.annot <- getBM(mart=ensmart, attributes=c("ensembl_gene_id", "mgi_symbol","description" ))
+
+# we need to merge the symbols and descriptions.
+ids <- unique(ens.annot[,"ensembl_gene_id"])
+ens.annot <- ens.annot[order(ens.annot[,"ensembl_gene_id"]),]
+dups <- unique( ens.annot[which( duplicated(ens.annot[,"ensembl_gene_id"])),"ensembl_gene_id"] )
+for(id in dups){
+  inds <- which(ens.annot[,"ensembl_gene_id"]==id)
+  ens.annot[inds,"mgi_symbol"] = paste(unique(ens.annot[inds,"mgi_symbol"]), collapse=",")
+  ens.annot[inds,"description"] = paste( unique(ens.annot[inds,"description"]), collapse=",")
+}
+
+dups <- duplicated(ens.annot[,"ensembl_gene_id"])
+if(sum(dups)>0) ens.annot <- ens.annot[!dups,]
+rownames(ens.annot) <- ids
+ens.annot<-ens.annot[,-1]
+#save(ens.annot, file="/mnt/work/ensannot.RData")
+#load("/mnt/work/ensannot.RData")
 
 
-#get each venn subset:
 
-nms<-names(ns5.esc.ol)
-usecols <- c("start","end")
+#no overlap
+esc <- do.call("rbind",lapply(names(esc.pet), function(n){
 
+  es.nearest<-as.data.frame(nearest.tss.es[n])
+  this.es <- cbind(es.nearest, ens.annot[es.nearest[,"feature"], ])
 
-ns.es <- do.call("rbind",lapply(as.list(nms),function(n){
-  inds <- as.matrix(ns5.esc.ol[[n]])
-  ns <- as.data.frame(ns5.pet[n])[inds[,1], usecols]
-  es <- as.data.frame(esc.pet[n])[inds[,2], usecols]
+  n.e <- ns5.esc.ol[[n]]
+  a.e <- astro.esc.ol[[n]]
+
+  rm.inds <-  NULL
+  if(!is.null(n.e)) rm.inds <- c(rm.inds, as.matrix(n.e)[,"subject"])
+  if(!is.null(a.e)) rm.inds <- c(rm.inds, as.matrix(a.e)[,"subject"])
+
+  rm.inds <- -1*unique(rm.inds)
+  if(length(rm.inds) > 0) this.es <- this.es[rm.inds,]
+  return(this.es)
   
-  ns.nearest<-as.data.frame(nearest.tss.ns[n])[inds[,1],]
-  ns.nearest <- cbind(ns.nearest,  ens.annot[ns.nearest[,"feature"],]) 
+}))
+              
+ns5 <- do.call("rbind",lapply(names(ns5.pet), function(n){
 
-  es.nearest<-as.data.frame(nearest.tss.es[n])[inds[,2],]
-  es.nearest <- cbind(es.nearest,  ens.annot[es.nearest[,"feature"],]) 
+  ns.nearest<-as.data.frame(nearest.tss.ns[n])
+  this.ns <- cbind(ns.nearest, ens.annot[ns.nearest[,"feature"], ])
 
-  ns <- cbind(ns,ns.nearest)
-  es <- cbind(es,es.nearest)
+  n.e <- ns5.esc.ol[[n]]
+  a.n <- astro.ns5.ol[[n]]
+
+  rm.inds <-  NULL
+  if(!is.null(n.e)) rm.inds <- c(rm.inds, as.matrix(n.e)[,"query"])
+  if(!is.null(a.n)) rm.inds <- c(rm.inds, as.matrix(a.n)[,"subject"])
+
+  rm.inds <- -1*unique(rm.inds)
+  if(length(rm.inds)>0) this.ns <- this.ns[rm.inds,]
+  return(this.ns)
+  
+}))
+         
+
+astro <- do.call("rbind",lapply(names(astro.chipseq), function(n){
+
+  as.nearest<-as.data.frame(nearest.tss.astro[n])
+  this.as <- cbind(as.nearest, ens.annot[as.nearest[,"feature"], ])
+
+  a.e <- astro.esc.ol[[n]]
+  a.n <- astro.ns5.ol[[n]]
+
+  rm.inds <-  NULL
+  if(!is.null(a.e)) rm.inds <- c(rm.inds, as.matrix(a.e)[,"query"])
+  if(!is.null(a.n)) rm.inds <- c(rm.inds, as.matrix(a.n)[,"query"])
+
+  rm.inds <- -1*unique(rm.inds)
+  if(length(rm.inds)>0) this.as <- this.as[rm.inds,]
+  return(this.as)
+
+  
+}))
+         
+
+
+         
+
+
+usecols <- c("start","end")
+ns.es <- do.call("rbind",lapply(intersect(names(ns5.pet), names(esc.pet)),function(n){
+
+  #don't bother if we have no overlaps
+  if (is.null(ns5.esc.ol[[n]])) return()
+
+  inds <- as.data.frame(as.matrix(ns5.esc.ol[[n]]))
+
+  # For the overlaps we *do* have, check they don't also overlap
+  # with astro sites  
+  all.ol <-  astro.esc.ns5.ol[[n]]
+  if(!is.null(all.ol)){
+    rm.inds <- -1*which(inds[,1] %in% all.ol[,"ns5"])
+    if(length(rm.inds) > 0){
+      inds <- inds[rm.inds,]
+    }
+  }
+  if(nrow(inds)==0) return()
+  
+  ns <- as.data.frame(nearest.tss.ns[n])[inds[,1],]
+  ns <- cbind(ns,  ens.annot[ns[,"feature"],]) 
+  ns <- ns[,-1]
+  
+  es <- as.data.frame(nearest.tss.es[n])[inds[,2],]
+  es <- cbind(es,  ens.annot[es[,"feature"],]) 
+  es <- es[,-1]
+  
   
   colnames(ns) <- paste("ns5",colnames(ns), sep=".")
   colnames(es) <- paste("esc",colnames(es), sep=".")
@@ -222,21 +226,27 @@ ns.es <- do.call("rbind",lapply(as.list(nms),function(n){
 }))
 
 
-astro.es <- do.call("rbind",lapply(as.list(nms),function(n){
+astro.es <- do.call("rbind",lapply(intersect(names(astro.chipseq), names(esc.pet)),function(n){
+
   if (is.null(astro.esc.ol[[n]])) return()
-  inds <-  as.matrix(astro.esc.ol[[n]])
-  astro <- as.data.frame(astro.chipseq[n])[inds[,1], usecols]
-  es <- as.data.frame(esc.pet[n])[inds[,2], usecols]
 
-  astro.nearest<-as.data.frame(nearest.tss.astro[n])[inds[,1],]
-  astro.nearest <- cbind(astro.nearest,  ens.annot[astro.nearest[,"feature"],]) 
-
-  es.nearest<-as.data.frame(nearest.tss.es[n])[inds[,2],]
-  es.nearest <- cbind(es.nearest,  ens.annot[es.nearest[,"feature"],]) 
+  inds <- as.data.frame(as.matrix(astro.esc.ol[[n]]))
+  all.ol <-  astro.esc.ns5.ol[[n]]
+  if(!is.null(all.ol)){
+    rm.inds <- -1*which(inds[,1] %in% all.ol[,"astro"])
+    if(length(rm.inds) > 0){
+      inds <- inds[rm.inds,]
+    }
+  }
+  if(nrow(inds)==0) return()
   
-  astro <- cbind(astro,astro.nearest)
-  es <- cbind(es,es.nearest)
+  astro <- as.data.frame(nearest.tss.astro[n])[inds[,1],]
+  astro <- cbind(astro,  ens.annot[astro[,"feature"],]) 
+  astro <- astro[,-1]
   
+  es <- as.data.frame(nearest.tss.es[n])[inds[,2],]
+  es <- cbind(es,  ens.annot[es[,"feature"],]) 
+  es <- es[,-1]
   
   colnames(astro) <- paste("astro",colnames(astro), sep=".")
   colnames(es) <- paste("esc",colnames(es), sep=".")
@@ -244,58 +254,60 @@ astro.es <- do.call("rbind",lapply(as.list(nms),function(n){
 }))
 
 
-astro.ns <- do.call("rbind",lapply(as.list(nms),function(n){
+
+
+astro.ns <- do.call("rbind",lapply(intersect(names(astro.chipseq), names(ns5.pet)),function(n){
+
   if (is.null(astro.ns5.ol[[n]])) return()
-  inds <-  as.matrix(astro.ns5.ol[[n]])
-  astro <- as.data.frame(astro.chipseq[n])[inds[,1], usecols]
-  ns <- as.data.frame(ns5.pet[n])[inds[,2], usecols]
 
-  astro.nearest<-as.data.frame(nearest.tss.astro[n])[inds[,1],]
-  astro.nearest <- cbind(astro.nearest,  ens.annot[astro.nearest[,"feature"],]) 
-
-  ns.nearest<-as.data.frame(nearest.tss.ns[n])[inds[,2],]
-  ns.nearest <- cbind(ns.nearest,  ens.annot[ns.nearest[,"feature"],]) 
-
-  astro <- cbind(astro,astro.nearest)
-  ns <- cbind(ns,ns.nearest)
-
+  inds <- as.data.frame(as.matrix(astro.ns5.ol[[n]]))
+  all.ol <-  astro.esc.ns5.ol[[n]]
+  if(!is.null(all.ol)){
+    rm.inds <- -1*which(inds[,1] %in% all.ol[,"astro"])
+    if(length(rm.inds) > 0){
+      inds <- inds[rm.inds,]
+    }
+  }
+  if(nrow(inds)==0) return()
+  
+  astro <- as.data.frame(nearest.tss.astro[n])[inds[,1],]
+  astro <- cbind(astro,  ens.annot[astro[,"feature"],]) 
+  astro <- astro[,-1]
+  
+  ns <- as.data.frame(nearest.tss.ns[n])[inds[,2],]
+  ns <- cbind(ns,  ens.annot[ns[,"feature"],]) 
+  ns <- ns[,-1]
+  
   colnames(astro) <- paste("astro",colnames(astro), sep=".")
   colnames(ns) <- paste("ns5",colnames(ns), sep=".")
   res <- cbind(space=n, astro,ns)
 }))
 
 
-astro.ns.es <-do.call("rbind", lapply(as.list(nms), function(n){
-  this<-astro.both.ol[[n]]
-  if(is.null(nrow(this))) return()
-
-  astro <- as.data.frame(astro.chipseq[n])[this[,"astro"], usecols]
-  ns <- as.data.frame(ns5.pet[n])[this[,"ns5"], usecols]
-  es <- as.data.frame(esc.pet[n])[this[,"esc"], usecols]
-
-  astro.nearest<-as.data.frame(nearest.tss.astro[n])[this[,"astro"],]
-  astro.nearest <- cbind(astro.nearest,  ens.annot[astro.nearest[,"feature"],]) 
-
-  ns.nearest<-as.data.frame(nearest.tss.ns[n])[this[,"ns5"],]
-  ns.nearest <- cbind(ns.nearest,  ens.annot[ns.nearest[,"feature"],]) 
-
-  es.nearest<-as.data.frame(nearest.tss.es[n])[this[,"esc"],]
-  es.nearest <- cbind(es.nearest,  ens.annot[es.nearest[,"feature"],]) 
-
-  astro <- cbind(astro,astro.nearest)
-  ns <- cbind(ns, ns.nearest)
-  es <- cbind(es, es.nearest)
+astro.ns.es <- do.call("rbind",lapply(names(astro.esc.ns5.ol), function(n){
+  if(is.null(astro.esc.ns5.ol[[n]])){return()}
   
-  colnames(astro) <- paste("astro",colnames(astro), sep=".")
+  inds <-  astro.esc.ns5.ol[[n]]
+  
+  ast <- as.data.frame(nearest.tss.astro[n]) [inds[,"astro"],]
+  ast <- cbind(ast, ens.annot[ast[,"feature"],]) 
+  ast <- ast[,-1]
+                                      
+  ns <- as.data.frame(nearest.tss.ns[n])[inds[,"ns5"],]
+  ns <- cbind(ns,  ens.annot[ns[,"feature"],]) 
+  ns <- ns[,-1]
+
+  es <- as.data.frame(nearest.tss.es[n])[inds[,"esc"],]
+  es <- cbind(es,  ens.annot[es[,"feature"],])
+  es <- es[,-1]
+  
+  colnames(ast) <- paste("astro", colnames(ast),sep=".")
   colnames(ns) <- paste("ns5",colnames(ns), sep=".")
   colnames(es) <- paste("esc",colnames(es), sep=".")
-
-  res <- cbind(space=n, astro,ns, es)
   
+  res <- cbind(space=n, ast,ns,es)
   
-} ))
-
-
+}))
 
 #and write the overlap info out in some useful format? 
 
@@ -306,3 +318,38 @@ write.csv(ns.es, file=paste(output.prefix, "ns_es.csv", sep="_"))
 write.csv(astro.es, file=paste(output.prefix, "astro_es.csv", sep="_"))
 write.csv(astro.ns, file=paste(output.prefix, "astro_ns.csv", sep="_"))
 write.csv(astro.ns.es, file=paste(output.prefix, "astro_ns_es.csv", sep="_"))
+
+
+# total counts
+esc.n <- dim(esc.pet)[1]
+ns5.n <- dim(ns5.pet)[1]
+astro.n <- dim(astro.chipseq)[1]
+
+# venn counts
+esc.uniq.n <- dim(esc)[1]
+ns5.uniq.n <- dim(ns5)[1]
+astro.uniq.n <- dim(astro)[1]
+
+ns.es.n <- dim(ns.es)[1]
+astro.es.n <- dim(astro.es)[1]
+astro.ns.n <- dim(astro.ns)[1]
+
+astro.es.ns.n <- dim(astro.ns.es)[1]
+
+
+#create a txt report file with these counts
+filename <- paste(output.prefix,"report.txt", sep="_")
+
+cat("ESC Total:", esc.n, "\n", file=filename)
+cat("NS5 Total:", ns5.n, "\n", file=filename, append=T)
+cat("Astro Total:", astro.n, "\n", file=filename, append=T)
+
+cat("ESC Unique:", esc.uniq.n, "\n", file=filename, append=T)
+cat("NS5 Unique:", ns5.uniq.n, "\n", file=filename, append=T)
+cat("Astro Unique:", astro.uniq.n, "\n", file=filename, append=T)
+
+cat("NS5/ESC Overlap:", ns.es.n, "\n", file=filename, append=T)
+cat("Astro/ESC Overlap:", astro.es.n, "\n", file=filename, append=T)
+cat("Astro/NS5 Overlap:", astro.ns.n, "\n", file=filename, append=T)
+
+cat("Astro/ESC/NS5 Overlap:", astro.es.ns.n, "\n", file=filename, append=T)

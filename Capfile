@@ -74,8 +74,8 @@ end
 desc "install latest R-devel"
 task :install_r, :roles  => group_name do
   user = variables[:ssh_options][:user]
-#  sudo "apt-get -y build-dep r-base"  #everything for R
-#  sudo "apt-get -y install libxml2 libxml2-dev libcurl3 libcurl4-openssl-dev" #and for some of the Bioconductor stuff
+  sudo "apt-get -y build-dep r-base"  #everything for R
+  sudo "apt-get -y install libxml2 libxml2-dev libcurl3 libcurl4-openssl-dev" #and for some of the Bioconductor stuff
 	
   run "mkdir -p #{working_dir}/scripts"
   upload("scripts/R_setup.R","#{working_dir}/scripts/R_setup.R")
@@ -120,5 +120,6 @@ task :fetch_results, :roles => group_name do
   }
 end 
 before "fetch_results", "EC2:start"
+
 
 
